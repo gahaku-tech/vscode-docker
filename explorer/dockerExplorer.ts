@@ -13,9 +13,9 @@ export class DockerExplorerProvider implements vscode.TreeDataProvider<NodeBase>
 
     private _onDidChangeTreeData: vscode.EventEmitter<NodeBase> = new vscode.EventEmitter<NodeBase>();
     public readonly onDidChangeTreeData: vscode.Event<NodeBase> = this._onDidChangeTreeData.event;
-    private _imagesNode: RootNode;
-    private _containersNode: RootNode;
-    private _registriesNode: RootNode
+    private _imagesNode: RootNode | undefined;
+    private _containersNode: RootNode | undefined;
+    private _registriesNode: RootNode | undefined;
     private _azureAccount: AzureAccount | undefined;
 
     constructor(azureAccount: AzureAccount | undefined) {
@@ -29,15 +29,21 @@ export class DockerExplorerProvider implements vscode.TreeDataProvider<NodeBase>
     }
 
     public refreshImages(): void {
-        this._onDidChangeTreeData.fire(this._imagesNode);
+        if (this._imagesNode) {
+            this._onDidChangeTreeData.fire(this._imagesNode);
+        }
     }
 
     public refreshContainers(): void {
-        this._onDidChangeTreeData.fire(this._containersNode);
+        if (this._containersNode) {
+            this._onDidChangeTreeData.fire(this._containersNode);
+        }
     }
 
     public refreshRegistries(): void {
-        this._onDidChangeTreeData.fire(this._registriesNode);
+        if (this._registriesNode) {
+            this._onDidChangeTreeData.fire(this._registriesNode);
+        }
     }
 
     public refreshNode(element: NodeBase): void {

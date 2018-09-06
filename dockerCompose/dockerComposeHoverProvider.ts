@@ -21,11 +21,11 @@ export class DockerComposeHoverProvider implements HoverProvider {
         this._keyInfo = keyInfo;
     }
 
-    public provideHover(document: TextDocument, position: Position, token: CancellationToken): Thenable<Hover> {
+    public provideHover(document: TextDocument, position: Position, token: CancellationToken): Thenable<Hover | undefined> {
         let line = document.lineAt(position.line);
 
         if (line.text.length === 0) {
-            return Promise.resolve(null);
+            return Promise.resolve(undefined);
         }
 
         let tokens = this._parser.parseLine(line);
@@ -33,7 +33,7 @@ export class DockerComposeHoverProvider implements HoverProvider {
     }
 
     // tslint:disable-next-line:promise-function-async // Grandfathered in
-    private _computeInfoForLineWithTokens(line: string, tokens: parser.IToken[], position: Position): Promise<Hover> {
+    private _computeInfoForLineWithTokens(line: string, tokens: parser.IToken[], position: Position): Promise<Hover | undefined> {
         let possibleTokens = this._parser.tokensAtColumn(tokens, position.character);
 
         // tslint:disable-next-line:promise-function-async // Grandfathered in
@@ -56,7 +56,6 @@ export class DockerComposeHoverProvider implements HoverProvider {
             let hover = new Hover(filteredResults[0].result, range);
 
             return hover;
-
         });
     }
 
@@ -81,6 +80,6 @@ export class DockerComposeHoverProvider implements HoverProvider {
             return r2;
         }
 
-        return;
+        return Promise.resolve([]); // asdf test
     }
 }
