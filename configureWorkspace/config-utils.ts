@@ -18,6 +18,22 @@ export type Platform =
     'Ruby' |
     'Other';
 
+namespace DockerDotNetCoreConstants {
+    const AspNetCoreEnv = "ASPNETCORE_ENVIRONMENT";
+    const AspNetCoreHttpsPortEnv = "ASPNETCORE_HTTPS_PORT";
+    const AspNetCoreUrlsEnv = "ASPNETCORE_URLS";
+    const DotNetCoreAppMoniker = "netcoreapp";
+    const NowListeningOnMessage = "Now listening on";
+    const TargetFramework = 'TargetFramework';
+    const UserSecretsIdPropertyName = "UserSecretsId";
+}
+
+const AspNetCoreRuntimeImage = "microsoft/aspnetcore:{0}.{1}{2}";
+const AspNetCoreSdkImage = "microsoft/aspnetcore-build:{0}.{1}{2}";
+const DotNetCoreRuntimeImage = "microsoft/dotnet:{0}.{1}-runtime{2}";
+const DotNetCoreAspNetRuntimeImage = "microsoft/dotnet:{0}.{1}-aspnetcore-runtime{2}";
+const DotNetCoreSdkImage = "microsoft/dotnet:{0}.{1}-sdk{2}";
+
 /**
  * Prompts for a port number
  * @throws `UserCancelledError` if the user cancels.

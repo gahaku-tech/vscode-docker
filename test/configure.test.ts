@@ -82,7 +82,8 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
         return files;
     }
 
-    const dotNetCoreConsoleProjectFileContents = `
+    // https://github.com/dotnet/dotnet-docker/tree/master/samples/dotnetapp
+    const dotNetCoreConsole_21_ProjectFileContents = `
     <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
 
         <PropertyGroup>
@@ -97,7 +98,8 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
     </Project>
     `;
 
-    const aspNetProjectFileContents = `
+    // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
+    const aspNet_21_ProjectFileContents = `
     <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
@@ -110,6 +112,75 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
     </Project>
     `;
+
+    const gradleWithJarContents = `
+    apply plugin: 'groovy'
+
+    dependencies {
+        compile gradleApi()
+        compile localGroovy()
+    }
+
+    apply plugin: 'maven'
+    apply plugin: 'signing'
+
+    repositories {
+        mavenCentral()
+    }
+
+    group = 'com.github.test'
+    version = '1.2.3'
+    sourceCompatibility = 1.7
+    targetCompatibility = 1.7
+
+    task javadocJar(type: Jar) {
+        classifier = 'javadoc'
+        from javadoc
+    }
+
+    task sourcesJar(type: Jar) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    artifacts {
+        archives javadocJar, sourcesJar
+    }
+
+    jar {
+        configurations.shade.each { dep ->
+            from(project.zipTree(dep)){
+                duplicatesStrategy 'warn'
+            }
+        }
+
+        manifest {
+            attributes 'version':project.version
+            attributes 'javaCompliance': project.targetCompatibility
+            attributes 'group':project.group
+            attributes 'Implementation-Version': project.version + getGitHash()
+        }
+        archiveName 'abc.jar'
+    }
+
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+                repository(url: uri('../repo'))
+
+                pom.project {
+                    name 'test'
+                    packaging 'jar'
+                    description 'test'
+                    url 'https://github.com/test'
+                }
+            }
+        }
+    }
+`;
 
     // Node.js
 
@@ -249,8 +320,8 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
         });
 
         testInEmptyFolder("Multiple project files", async () => {
-            await writeFile('projectFolder1', 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
-            await writeFile('projectFolder2', 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
+            await writeFile('projectFolder1', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
+            await writeFile('projectFolder2', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
             await testConfigureDocker(
                 '.NET Core Console',
                 {
@@ -271,7 +342,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
         });
 
         testInEmptyFolder("Windows", async () => {
-            await writeFile('projectFolder', 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
+            await writeFile('projectFolder', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
 
             await testConfigureDocker(
                 '.NET Core Console',
@@ -297,7 +368,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
         testInEmptyFolder("Linux", async () => {
             // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('projectFolder2', 'aspnetapp2.csproj', dotNetCoreConsoleProjectFileContents);
+            await writeFile('projectFolder2', 'aspnetapp2.csproj', dotNetCoreConsole_21_ProjectFileContents);
 
             await testConfigureDocker(
                 '.NET Core Console',
@@ -333,7 +404,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
         testInEmptyFolder("Windows", async () => {
             // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('projectFolder', 'aspnetapp.csproj', aspNetProjectFileContents);
+            await writeFile('projectFolder', 'aspnetapp.csproj', aspNet_21_ProjectFileContents);
 
             await testConfigureDocker(
                 'ASP.NET Core',
@@ -358,7 +429,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
         testInEmptyFolder("Linux", async () => {
             // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('projectFolder2/subfolder', 'aspnetapp2.csproj', aspNetProjectFileContents);
+            await writeFile('projectFolder2/subfolder', 'aspnetapp2.csproj', aspNet_21_ProjectFileContents);
 
             await testConfigureDocker(
                 'ASP.NET Core',
@@ -491,74 +562,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
         testInEmptyFolder("Gradle with jar", async () => {
             // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('', 'build.gradle', `
-                apply plugin: 'groovy'
-
-                dependencies {
-                    compile gradleApi()
-                    compile localGroovy()
-                }
-
-                apply plugin: 'maven'
-                apply plugin: 'signing'
-
-                repositories {
-                    mavenCentral()
-                }
-
-                group = 'com.github.test'
-                version = '1.2.3'
-                sourceCompatibility = 1.7
-                targetCompatibility = 1.7
-
-                task javadocJar(type: Jar) {
-                    classifier = 'javadoc'
-                    from javadoc
-                }
-
-                task sourcesJar(type: Jar) {
-                    classifier = 'sources'
-                    from sourceSets.main.allSource
-                }
-
-                artifacts {
-                    archives javadocJar, sourcesJar
-                }
-
-                jar {
-                    configurations.shade.each { dep ->
-                        from(project.zipTree(dep)){
-                            duplicatesStrategy 'warn'
-                        }
-                    }
-
-                    manifest {
-                        attributes 'version':project.version
-                        attributes 'javaCompliance': project.targetCompatibility
-                        attributes 'group':project.group
-                        attributes 'Implementation-Version': project.version + getGitHash()
-                    }
-                    archiveName 'abc.jar'
-                }
-
-                uploadArchives {
-                    repositories {
-                        mavenDeployer {
-
-                            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-                            repository(url: uri('../repo'))
-
-                            pom.project {
-                                name 'test'
-                                packaging 'jar'
-                                description 'test'
-                                url 'https://github.com/test'
-                            }
-                        }
-                    }
-                }
-                            `);
+            await writeFile('', 'build.gradle', gradleWithJarContents);
 
             await testConfigureDocker(
                 'Java',
@@ -660,8 +664,8 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
             });
 
             testInEmptyFolder("Only platform/OS specified, others come from user", async () => {
-                await writeFile('projectFolder1', 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
-                await writeFile('projectFolder2', 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
+                await writeFile('projectFolder1', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
+                await writeFile('projectFolder2', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
 
                 await testConfigureDockerViaApi(
                     {
@@ -704,7 +708,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
                 testInEmptyFolder("All files in service folder, output to service folder", async () => {
                     let rootFolder = 'serviceFolder';
                     await writeFile(rootFolder, 'somefile1.cs', "// Some file");
-                    await writeFile(rootFolder, 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
+                    await writeFile(rootFolder, 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
 
                     await testConfigureDockerViaApi(
                         {
@@ -724,7 +728,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
                 testInEmptyFolder(".csproj file in subfolder, output to service folder", async () => {
                     let rootFolder = 'serviceFolder';
                     await writeFile(path.join(rootFolder, 'subfolder1'), 'somefile1.cs', "// Some file");
-                    await writeFile(path.join(rootFolder, 'subfolder1'), 'aspnetapp.csproj', dotNetCoreConsoleProjectFileContents);
+                    await writeFile(path.join(rootFolder, 'subfolder1'), 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
 
                     await testConfigureDockerViaApi(
                         {
@@ -743,7 +747,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
                 testInEmptyFolder(".csproj file in subfolder, output to subfolder", async () => {
                     let rootFolder = 'serviceFolder';
                     await writeFile(path.join(rootFolder, 'subfolder1'), 'somefile1.cs', "// Some file");
-                    await writeFile(path.join(rootFolder, 'subfolder1'), 'aspnetapp.csproj', aspNetProjectFileContents);
+                    await writeFile(path.join(rootFolder, 'subfolder1'), 'aspnetapp.csproj', aspNet_21_ProjectFileContents);
 
                     await testConfigureDockerViaApi(
                         {
