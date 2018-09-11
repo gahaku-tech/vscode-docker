@@ -82,6 +82,31 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
         return files;
     }
 
+    // Created in Visual Studio 2017
+    const dotNetCoreConsole_10_ProjectFileContents = `
+    <Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp1.0</TargetFramework>
+      <RootNamespace>Core1._0ConsoleApp</RootNamespace>
+    </PropertyGroup>
+
+  </Project>
+      `;
+
+    const dotNetCoreConsole_20_ProjectFileContents = `
+      <Project Sdk="Microsoft.NET.Sdk">
+
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>netcoreapp2.0</TargetFramework>
+        <RootNamespace>Core2._0ConsoleApp</RootNamespace>
+      </PropertyGroup>
+
+    </Project>
+            `;
+
     // https://github.com/dotnet/dotnet-docker/tree/master/samples/dotnetapp
     const dotNetCoreConsole_21_ProjectFileContents = `
     <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
@@ -341,56 +366,217 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
             assertFileContains('Dockerfile', 'projectFolder2/aspnetapp');
         });
 
-        testInEmptyFolder("Windows", async () => {
-            await writeFile('projectFolder', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
-
-            await testConfigureDocker(
-                '.NET Core Console',
-                {
-                    configurePlatform: '.NET Core Console',
-                    configureOs: 'Windows',
-                    packageFileType: '.csproj',
-                    packageFileSubfolderDepth: '1'
-                },
-                'Windows', '1234');
-
-            let projectFiles = await getFilesInProject();
-
-            // No docker-compose files
-            assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj'], "The set of files in the project folder after configure was run is not correct.");
-
-            assertNotFileContains('Dockerfile', 'EXPOSE');
-            assertFileContains('Dockerfile', 'RUN dotnet build projectFolder/aspnetapp.csproj -c Release -o /app');
-            assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder/aspnetapp.dll"]');
-            assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-runtime-nanoserver-1709 AS base');
-            assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-sdk-nanoserver-1709 AS build');
+        suite(".NET Core 1.0", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
         });
 
-        testInEmptyFolder("Linux", async () => {
-            // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('projectFolder2', 'aspnetapp2.csproj', dotNetCoreConsole_21_ProjectFileContents);
-
-            await testConfigureDocker(
-                '.NET Core Console',
-                {
-                    configurePlatform: '.NET Core Console',
-                    configureOs: 'Linux',
-                    packageFileType: '.csproj',
-                    packageFileSubfolderDepth: '1'
-                },
-                'Linux', '1234');
-
-            let projectFiles = await getFilesInProject();
-
-            // No docker-compose files
-            assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder2/aspnetapp2.csproj'], "The set of files in the project folder after configure was run is not correct.");
-
-            assertNotFileContains('Dockerfile', 'EXPOSE 1234');
-            assertFileContains('Dockerfile', 'RUN dotnet build projectFolder2/aspnetapp2.csproj -c Release -o /app');
-            assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder2/aspnetapp2.dll"]');
-            assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-runtime AS base');
-            assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-sdk AS build');
+        suite(".NET Core 1.1", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
         });
+
+        suite(".NET Core 2.0", async () => {
+            testInEmptyFolder(" Windows", async () => {
+                await writeFile('projectFolder', 'aspnetapp.csproj', dotNetCoreConsole_20_ProjectFileContents);
+
+                await testConfigureDocker(
+                    '.NET Core Console',
+                    {
+                        configurePlatform: '.NET Core Console',
+                        configureOs: 'Windows',
+                        packageFileType: '.csproj',
+                        packageFileSubfolderDepth: '1'
+                    },
+                    'Windows', '1234');
+
+                let projectFiles = await getFilesInProject();
+
+                // No docker-compose files
+                assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj'], "The set of files in the project folder after configure was run is not correct.");
+
+                // Generated by VS:
+
+                // #Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
+                // #For more information, please see http://aka.ms/containercompat
+                //
+                // FROM microsoft/dotnet:2.0-runtime-nanoserver-sac2016 AS base
+                // WORKDIR /app
+                //
+                // FROM microsoft/dotnet:2.0-sdk-nanoserver-sac2016 AS build
+                // WORKDIR /src
+                // COPY Core2.0ConsoleAppWindows/Core2.0ConsoleAppWindows.csproj Core2.0ConsoleAppWindows/
+                // RUN dotnet restore Core2.0ConsoleAppWindows/Core2.0ConsoleAppWindows.csproj
+                // COPY . .
+                // WORKDIR /src/Core2.0ConsoleAppWindows
+                // RUN dotnet build Core2.0ConsoleAppWindows.csproj -c Release -o /app
+                //
+                // FROM build AS publish
+                // RUN dotnet publish Core2.0ConsoleAppWindows.csproj -c Release -o /app
+                //
+                // FROM base AS final
+                // WORKDIR /app
+                // COPY --from=publish /app .
+                // ENTRYPOINT ["dotnet", "Core2.0ConsoleAppWindows.dll"]
+
+                assertNotFileContains('Dockerfile', 'EXPOSE');
+                assertFileContains('Dockerfile', 'RUN dotnet build projectFolder/aspnetapp.csproj -c Release -o /app');
+                assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder/aspnetapp.dll"]');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-runtime-nanoserver-1709 AS base');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-sdk-nanoserver-1709 AS build');
+            });
+
+            testInEmptyFolder("Linux", async () => {
+                // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
+                await writeFile('projectFolder2', 'aspnetapp2.csproj', dotNetCoreConsole_20_ProjectFileContents);
+
+                await testConfigureDocker(
+                    '.NET Core Console',
+                    {
+                        configurePlatform: '.NET Core Console',
+                        configureOs: 'Linux',
+                        packageFileType: '.csproj',
+                        packageFileSubfolderDepth: '1'
+                    },
+                    'Linux', '1234');
+
+                let projectFiles = await getFilesInProject();
+
+                // No docker-compose files
+                assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder2/aspnetapp2.csproj'], "The set of files in the project folder after configure was run is not correct.");
+
+                // Generated by VS:
+
+                // FROM microsoft/dotnet:2.0-runtime AS base
+                // WORKDIR /app
+                //
+                // FROM microsoft/dotnet:2.0-sdk AS build
+                // WORKDIR /src
+                // COPY Core2.0ConsoleAppLinux/Core2.0ConsoleAppLinux.csproj Core2.0ConsoleAppLinux/
+                // RUN dotnet restore Core2.0ConsoleAppLinux/Core2.0ConsoleAppLinux.csproj
+                // COPY . .
+                // WORKDIR /src/Core2.0ConsoleAppLinux
+                // RUN dotnet build Core2.0ConsoleAppLinux.csproj -c Release -o /app
+                //
+                // FROM build AS publish
+                // RUN dotnet publish Core2.0ConsoleAppLinux.csproj -c Release -o /app
+                //
+                // FROM base AS final
+                // WORKDIR /app
+                // COPY --from=publish /app .
+                // ENTRYPOINT ["dotnet", "Core2.0ConsoleAppLinux.dll"]
+
+                assertNotFileContains('Dockerfile', 'EXPOSE 1234');
+                assertFileContains('Dockerfile', 'RUN dotnet build projectFolder2/aspnetapp2.csproj -c Release -o /app');
+                assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder2/aspnetapp2.dll"]');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-runtime AS base');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-sdk AS build');
+            });
+        });
+
+        suite(".NET Core 2.1", async () => {
+            testInEmptyFolder(" Windows", async () => {
+                await writeFile('projectFolder', 'aspnetapp.csproj', dotNetCoreConsole_21_ProjectFileContents);
+
+                await testConfigureDocker(
+                    '.NET Core Console',
+                    {
+                        configurePlatform: '.NET Core Console',
+                        configureOs: 'Windows',
+                        packageFileType: '.csproj',
+                        packageFileSubfolderDepth: '1'
+                    },
+                    'Windows', '1234');
+
+                let projectFiles = await getFilesInProject();
+
+                // No docker-compose files
+                assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj'], "The set of files in the project folder after configure was run is not correct.");
+
+                // Generated by VS:
+
+                // #Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
+                // #For more information, please see http://aka.ms/containercompat
+                //
+                // FROM microsoft/dotnet:2.1-runtime-nanoserver-sac2016 AS base
+                // WORKDIR /app
+                //
+                // FROM microsoft/dotnet:2.1-sdk-nanoserver-sac2016 AS build
+                // WORKDIR /src
+                // COPY Core2.1ConsoleAppWindows/Core2.1ConsoleAppWindows.csproj Core2.1ConsoleAppWindows/
+                // RUN dotnet restore Core2.1ConsoleAppWindows/Core2.1ConsoleAppWindows.csproj
+                // COPY . .
+                // WORKDIR /src/Core2.1ConsoleAppWindows
+                // RUN dotnet build Core2.1ConsoleAppWindows.csproj -c Release -o /app
+                //
+                // FROM build AS publish
+                // RUN dotnet publish Core2.1ConsoleAppWindows.csproj -c Release -o /app
+                //
+                // FROM base AS final
+                // WORKDIR /app
+                // COPY --from=publish /app .
+                // ENTRYPOINT ["dotnet", "Core2.1ConsoleAppWindows.dll"]
+
+                assertNotFileContains('Dockerfile', 'EXPOSE');
+                assertFileContains('Dockerfile', 'RUN dotnet build projectFolder/aspnetapp.csproj -c Release -o /app');
+                assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder/aspnetapp.dll"]');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-runtime-nanoserver-1709 AS base');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-sdk-nanoserver-1709 AS build');
+            });
+
+            testInEmptyFolder("Linux", async () => {
+                // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
+                await writeFile('projectFolder2', 'aspnetapp2.csproj', dotNetCoreConsole_21_ProjectFileContents);
+
+                await testConfigureDocker(
+                    '.NET Core Console',
+                    {
+                        configurePlatform: '.NET Core Console',
+                        configureOs: 'Linux',
+                        packageFileType: '.csproj',
+                        packageFileSubfolderDepth: '1'
+                    },
+                    'Linux', '1234');
+
+                let projectFiles = await getFilesInProject();
+
+                // No docker-compose files
+                assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder2/aspnetapp2.csproj'], "The set of files in the project folder after configure was run is not correct.");
+
+                // Generated by VS:
+
+                // FROM microsoft/dotnet:2.1-runtime AS base
+                // WORKDIR /app
+                //
+                // FROM microsoft/dotnet:2.1-sdk AS build
+                // WORKDIR /src
+                // COPY Core2.1ConsoleAppLinux/Core2.1ConsoleAppLinux.csproj Core2.1ConsoleAppLinux/
+                // RUN dotnet restore Core2.1ConsoleAppLinux/Core2.1ConsoleAppLinux.csproj
+                // COPY . .
+                // WORKDIR /src/Core2.1ConsoleAppLinux
+                // RUN dotnet build Core2.1ConsoleAppLinux.csproj -c Release -o /app
+                //
+                // FROM build AS publish
+                // RUN dotnet publish Core2.1ConsoleAppLinux.csproj -c Release -o /app
+                //
+                // FROM base AS final
+                // WORKDIR /app
+                // COPY --from=publish /app .
+                // ENTRYPOINT ["dotnet", "Core2.1ConsoleAppLinux.dll"]
+
+                assertNotFileContains('Dockerfile', 'EXPOSE 1234');
+                assertFileContains('Dockerfile', 'RUN dotnet build projectFolder2/aspnetapp2.csproj -c Release -o /app');
+                assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder2/aspnetapp2.dll"]');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-runtime AS base');
+                assertFileContains('Dockerfile', 'FROM microsoft/dotnet:2.0-sdk AS build');
+            });
+        });
+
+        suite(".NET Core 2.2", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
+        });
+
     });
 
     // ASP.NET Core
@@ -402,54 +588,75 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
             );
         });
 
-        testInEmptyFolder("Windows", async () => {
-            // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('projectFolder', 'aspnetapp.csproj', aspNet_21_ProjectFileContents);
-
-            await testConfigureDocker(
-                'ASP.NET Core',
-                {
-                    configurePlatform: 'ASP.NET Core',
-                    configureOs: 'Windows',
-                    packageFileType: '.csproj',
-                    packageFileSubfolderDepth: '1',
-                },
-                'Windows', undefined /*use default port*/);
-
-            let projectFiles = await getFilesInProject();
-
-            // No docker-compose files
-            assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj'], "The set of files in the project folder after configure was run is not correct.");
-
-            assertFileContains('Dockerfile', 'EXPOSE 80');
-            assertFileContains('Dockerfile', 'RUN dotnet build projectFolder/aspnetapp.csproj -c Release -o /app');
-            assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder/aspnetapp.dll"]');
-            assertFileContains('Dockerfile', 'FROM microsoft/aspnetcore-build:2.0-nanoserver-1709 AS build');
+        suite(".NET Core 1.0", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
         });
 
-        testInEmptyFolder("Linux", async () => {
-            // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
-            await writeFile('projectFolder2/subfolder', 'aspnetapp2.csproj', aspNet_21_ProjectFileContents);
+        suite(".NET Core 1.1", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
+        });
 
-            await testConfigureDocker(
-                'ASP.NET Core',
-                {
-                    configurePlatform: 'ASP.NET Core',
-                    configureOs: 'Linux',
-                    packageFileType: '.csproj',
-                    packageFileSubfolderDepth: '2',
-                },
-                'Linux', '1234');
+        suite(".NET Core 2.0", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
+        });
 
-            let projectFiles = await getFilesInProject();
+        suite(".NET Core 2.1", async () => {
+            testInEmptyFolder("Windows", async () => {
+                await writeFile('projectFolder', 'aspnetapp.csproj', aspNet_21_ProjectFileContents);
 
-            // No docker-compose files
-            assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder2/subfolder/aspnetapp2.csproj'], "The set of files in the project folder after configure was run is not correct.");
+                await testConfigureDocker(
+                    'ASP.NET Core',
+                    {
+                        configurePlatform: 'ASP.NET Core',
+                        configureOs: 'Windows',
+                        packageFileType: '.csproj',
+                        packageFileSubfolderDepth: '1',
+                    },
+                    'Windows', undefined /*use default port*/);
 
-            assertFileContains('Dockerfile', 'EXPOSE 1234');
-            assertFileContains('Dockerfile', 'RUN dotnet build projectFolder2/subfolder/aspnetapp2.csproj -c Release -o /app');
-            assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder2/subfolder/aspnetapp2.dll"]');
-            assertFileContains('Dockerfile', 'FROM microsoft/aspnetcore-build:2.0 AS build');
+                let projectFiles = await getFilesInProject();
+
+                // No docker-compose files
+                assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj'], "The set of files in the project folder after configure was run is not correct.");
+
+                assertFileContains('Dockerfile', 'EXPOSE 80');
+                assertFileContains('Dockerfile', 'RUN dotnet build projectFolder/aspnetapp.csproj -c Release -o /app');
+                assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder/aspnetapp.dll"]');
+                assertFileContains('Dockerfile', 'FROM microsoft/aspnetcore-build:2.0-nanoserver-1709 AS build');
+            });
+
+            testInEmptyFolder("Linux", async () => {
+                // https://github.com/dotnet/dotnet-docker/tree/master/samples/aspnetapp
+                await writeFile('projectFolder2/subfolder', 'aspnetapp2.csproj', aspNet_21_ProjectFileContents);
+
+                await testConfigureDocker(
+                    'ASP.NET Core',
+                    {
+                        configurePlatform: 'ASP.NET Core',
+                        configureOs: 'Linux',
+                        packageFileType: '.csproj',
+                        packageFileSubfolderDepth: '2',
+                    },
+                    'Linux', '1234');
+
+                let projectFiles = await getFilesInProject();
+
+                // No docker-compose files
+                assertEx.unorderedArraysEqual(projectFiles, ['Dockerfile', '.dockerignore', 'projectFolder2/subfolder/aspnetapp2.csproj'], "The set of files in the project folder after configure was run is not correct.");
+
+                assertFileContains('Dockerfile', 'EXPOSE 1234');
+                assertFileContains('Dockerfile', 'RUN dotnet build projectFolder2/subfolder/aspnetapp2.csproj -c Release -o /app');
+                assertFileContains('Dockerfile', 'ENTRYPOINT ["dotnet", "projectFolder2/subfolder/aspnetapp2.dll"]');
+                assertFileContains('Dockerfile', 'FROM microsoft/aspnetcore-build:2.0 AS build');
+            });
+        });
+
+        suite(".NET Core 2.2", async () => {
+            testInEmptyFolder(" Windows");
+            testInEmptyFolder(" Linux");
         });
 
     });
