@@ -459,6 +459,19 @@ services:
     }
 }
 
+// Current VS version:
+
+// .dockerignore
+// .env
+// .git
+// .gitignore
+// .vs
+// .vscode
+// docker-compose.yml
+// docker-compose.*.yml
+// */bin
+// */obj
+
 function genDockerIgnoreFile(service: string, platformType: string, os: string, port: string): string {
     return `node_modules
 npm-debug.log
@@ -467,6 +480,9 @@ docker-compose*
 .dockerignore
 .git
 .gitignore
+.env
+*/bin
+*/obj
 README.md
 LICENSE
 .vscode`;
@@ -744,11 +760,6 @@ async function configureCore(actionContext: IActionContext, options: ConfigureAp
     let filesWritten: string[] = [];
 
     await Promise.all(Object.keys(DOCKER_FILE_TYPES).map(async (fileName) => {
-        if (platformType.toLowerCase().includes('.net') && fileName.includes('docker-compose')) {
-            // don't generate docker-compose files for .NET Core apps
-            return;
-        }
-
         return createWorkspaceFileIfNotExists(fileName, DOCKER_FILE_TYPES[fileName]);
     }));
 
@@ -773,8 +784,11 @@ async function configureCore(actionContext: IActionContext, options: ConfigureAp
 
         if (writeFile) {
             // Paths in the docker files should be relative to the Dockerfile (which is in the output folder)
-            fs.writeFileSync(filePath, generatorFunction(serviceNameAndPathRelativeToOutput, platformType, os, port, packageInfo), { encoding: 'utf8' });
-            filesWritten.push(fileName);
+            let fileContents = generatorFunction(serviceNameAndPathRelativeToOutput, platformType, os, port, packageInfo);
+            if (fileContents) {
+                fs.writeFileSync(filePath, fileContents, { encoding: 'utf8' });
+                filesWritten.push(fileName);
+            }
         }
     }
 
