@@ -15,7 +15,10 @@ export let configureAspDotNetCore = {
 // Note: serviceName includes the path of the service relative to the generated file, e.g. 'projectFolder1/myAspNetService'
 function genDockerFile(serviceName: string, platform: string, os: string | undefined, port: string, { cmd, author, version, artifactName }: Partial<PackageInfo>): string {
   if (os.toLowerCase() === 'windows') {
-    return `
+
+    return `#Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
+#For more information, please see http://aka.ms/containercompat
+
 FROM microsoft/aspnetcore:2.0-nanoserver-1709 AS base
 WORKDIR /app
 EXPOSE ${port}
@@ -36,13 +39,12 @@ WORKDIR /app
 COPY --from=publish /app .
 ENTRYPOINT ["dotnet", "${serviceName}.dll"]
 `;
-  } else {
-    // Linux
-    return `
-#Depending on the operating system of the host machines(s) that will build or run the containers, the image specified in the FROM statement may need to be changed.
-#For more information, please see http://aka.ms/containercompat
 
-FROM microsoft/aspnetcore:2.0 AS base
+  } else {
+
+    assert(os.toLowerCase() === 'linux');
+
+    return `FROM microsoft/aspnetcore:2.0 AS base
 WORKDIR /app
 EXPOSE ${port}
 
@@ -62,5 +64,6 @@ WORKDIR /app
 COPY --from=publish /app .
 ENTRYPOINT ["dotnet", "${serviceName}.dll"]
 `;
+
   }
 }

@@ -30,6 +30,7 @@ export interface PackageInfo {
     author: string;
     version: string;
     artifactName: string;
+    csProjFileContents: string | undefined;
 }
 
 interface JsonPackageContents {
@@ -245,11 +246,11 @@ async function findCSProjFile(folderPath: string): Promise<string> {
 
     if (projectFiles.length > 1) {
         let items = projectFiles.map(p => <vscode.QuickPickItem>{ label: p });
-        const res = await ext.ui.showQuickPick(items, opt);
-        return res.label.slice(0, -'.csproj'.length);
+        let result = await ext.ui.showQuickPick(items, opt);
+        return result.label;
+    } else {
+        return projectFiles[0];
     }
-
-    return projectFiles[0].slice(0, -'.csproj'.length);
 }
 
 type GeneratorFunction = (serviceName: string, platform: Platform, os: OS | undefined, port: string, packageJson?: Partial<PackageInfo>) => string;
@@ -356,12 +357,16 @@ async function configureCore(actionContext: IActionContext, options: ConfigureAp
         }
     }
 
+    let csProjFileContents: string;
     let serviceNameAndPathRelativeToOutput: string;
     {
         // Scope serviceNameAndPathRelativeToRoot only to this block of code
         let serviceNameAndPathRelativeToRoot: string;
         if (platformType.toLowerCase().includes('.net')) {
-            serviceNameAndPathRelativeToRoot = await findCSProjFile(rootFolderPath);
+            let csProjFilePath = await findCSProjFile(rootFolderPath);
+            serviceNameAndPathRelativeToRoot = csProjFilePath.slice(0, -'.csproj'.length);
+            csProjFileContents = (await fse.readFile(csProjFilePath)).toString();
+
             properties.packageFileType = '.csproj';
             properties.packageFileSubfolderDepth = getSubfolderDepth(serviceNameAndPathRelativeToRoot);
         } else {
@@ -390,8 +395,9 @@ async function configureCore(actionContext: IActionContext, options: ConfigureAp
         }
     }
 
-    let filesWritten: string[] = [];
+    packageInfo.csProjFileContents = csProjFileContents;
 
+    let filesWritten: string[] = [];
     await Promise.all(Object.keys(DOCKER_FILE_TYPES).map(async (fileName) => {
         return createWorkspaceFileIfNotExists(fileName, DOCKER_FILE_TYPES[fileName]);
     }));

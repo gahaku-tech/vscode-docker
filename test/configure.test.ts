@@ -21,6 +21,13 @@ let testRootFolder: string = getTestRootFolder();
 
 // TODO: add contains checks for compose files
 
+async function readFile(pathRelativeToTestRootFolder: string): Promise<string> {
+    let dockerFilePath = path.join(testRootFolder, pathRelativeToTestRootFolder);
+    let dockerFileBuffer = await fse.readFile(dockerFilePath);
+    let dockerFileContents = dockerFileBuffer.toString();
+    return dockerFileContents;
+}
+
 suite("configure (Add Docker files to Workspace)", function (this: Suite): void {
     this.timeout(30 * 1000);
 
@@ -49,8 +56,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
             // for (let file of projectFiles) {
             //     console.log(file);
-            //     let filePath = path.join(testRootFolder, file);
-            //     let contents = fse.readFileSync(filePath).toString();
+            //     let contents = readFile(filePath);
             //     console.log(contents);
             // }
         }
@@ -67,8 +73,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
 
             // for (let file of projectFiles) {
             //     console.log(file);
-            //     let filePath = path.join(testRootFolder, file);
-            //     let contents = fse.readFileSync(filePath).toString();
+            //     let contents = readFile(filePath);
             //     console.log(contents);
             // }
         }
@@ -432,15 +437,13 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
                     ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj']
                 );
 
-                let dockerFilePath = path.join(testRootFolder, 'projectFolder', 'Dockerfile');
-                let dockerFileContents = await fse.readFile(dockerFilePath).toString();
-
+                let dockerFileContents = await readFile('Dockerfile');
                 assert.equal(dockerFileContents, expectedDockerFileContents, "Dockerfile contents did not match expected");
             });
         }
 
         testInEmptyFolder("Windows", async () => {
-            await writeFile('projectFolder', 'aspnetapp.csproj', dotNetCoreConsole_20_ProjectFileContents);
+            await writeFile('', 'aspnetapp.csproj', dotNetCoreConsole_20_ProjectFileContents);
 
             await testConfigureDocker(
                 '.NET Core Console',
@@ -451,7 +454,7 @@ suite("configure (Add Docker files to Workspace)", function (this: Suite): void 
                     packageFileSubfolderDepth: '1'
                 },
                 ['Windows', '1234'],
-                ['Dockerfile', '.dockerignore', 'projectFolder/aspnetapp.csproj']
+                ['Dockerfile', '.dockerignore', 'aspnetapp.csproj']
             );
 
             suite(".NET Core 2.0", async () => {
